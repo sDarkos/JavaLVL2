@@ -3,7 +3,7 @@ public class Main {
     static final int size = 10000000;
     static final int h = size / 2;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         OneThread();
         twoThread();
@@ -26,7 +26,7 @@ public class Main {
         System.out.println("One thread time : " + (System.currentTimeMillis() - a));
     }
 
-    static void twoThread(){
+    static void twoThread() throws InterruptedException {
         Float[] arr = new Float[size];
 
         for (int i = 0; i < arr.length; i++) {
@@ -57,6 +57,9 @@ public class Main {
 
         t1.start();
         t2.start();
+
+        t1.join();
+        t2.join();
 
         System.arraycopy(a1, 0, arr, 0, h);
         System.arraycopy(a2, 0, arr, h, h);
