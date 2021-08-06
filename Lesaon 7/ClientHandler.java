@@ -26,7 +26,7 @@ public class ClientHandler {
 
             new Thread(()->{
                 try {
-                    doAuthentication(socket);
+                    doAuthentication();
                     listenMessages();
                 } catch (IOException e) {
                     e.printStackTrace();
