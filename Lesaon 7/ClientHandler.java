@@ -63,10 +63,9 @@ public class ClientHandler {
         }
     }
 
-    private void doAuthentication (Socket socket) throws IOException {
+    private void doAuthentication () throws IOException {
         sendMessage("Greeting your outstanding chat ");
         sendMessage("Please authentication: -auth login password");
-        sendMessage("You have 120 seconds to authentication");
         while (true) {
                 String maybeCredentials = in.readUTF();
                 if (maybeCredentials.startsWith("-auth")) {
