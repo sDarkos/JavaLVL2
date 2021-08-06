@@ -6,12 +6,14 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler {
     private Server server;
     private DataInputStream in;
     private DataOutputStream out;
     private String name;
+    private AtomicBoolean isAuth = new AtomicBoolean(false);
 
     public String getName() {
         return name;
@@ -26,7 +28,7 @@ public class ClientHandler {
 
             new Thread(()->{
                 try {
-                    doAuthentication();
+                    doAuthentication(socket);
                     listenMessages();
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -42,7 +44,6 @@ public class ClientHandler {
 
     private void closeConnection(Socket socket){
         server.unSubscribe(this);
-        server.broadcastMessage("User +  " + name + " is logout.", "CHAT");
 
         try {
             in.close();
@@ -63,11 +64,26 @@ public class ClientHandler {
         }
     }
 
-    private void doAuthentication () throws IOException {
+    private void doAuthentication (Socket socket) throws IOException {
         sendMessage("Greeting your outstanding chat ");
         sendMessage("Please authentication: -auth login password");
 
         while (true) {
+
+            new Thread(() -> {
+                long timeToAuth = System.currentTimeMillis();
+                while (true){
+                    if((System.currentTimeMillis() - timeToAuth) >= 30000){
+                        sendMessage("Time is out..");
+                        sendMessage("Close connection...");
+                        closeConnection(socket);
+                        break;
+                    } else if (isAuth.get()){
+                        break;
+                    }
+                }
+            }).start();
+
                 String maybeCredentials = in.readUTF();
                 if (maybeCredentials.startsWith("-auth")) {
                     String[] credentials = maybeCredentials.split("\\s");
@@ -78,6 +94,8 @@ public class ClientHandler {
                     if (maybeUser.isPresent()) {
                         AuthService.Entry user = maybeUser.get();
                         if (!server.isUserOccupied(user.getName())) {
+                            name = user.getName();
+                            isAuth.set(true);
                             sendMessage("Login OK...");
                             sendMessage("Welcome");
                             server.broadcastMessage("User " + name + " entered chat", "CHAT");
@@ -112,7 +130,7 @@ public class ClientHandler {
             if (inBoundMessage.startsWith("/w")){
                 String[] whisper = inBoundMessage.split("\\s");
                 if (server.getAuthService().isCreated(whisper[1])){
-                    String whisperMessage = "User " + this.getName() + " whisper you:";
+                    String whisperMessage = "User " + name + " whisper you:";
                     for (int i = 2; i < whisper.length; i++) {
                         whisperMessage = whisperMessage + " "  + whisper[i];
                     }
@@ -122,7 +140,7 @@ public class ClientHandler {
                     sendMessage("User is not fond.");
                 }
             } else {
-                server.broadcastMessage(inBoundMessage ,this.getName());
+                server.broadcastMessage(inBoundMessage ,name);
             }
         }
     }
