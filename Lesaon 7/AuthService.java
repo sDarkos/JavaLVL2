@@ -10,9 +10,9 @@ public class AuthService {
 
     static {
         entries = List.of(
-                new Entry("name1", "nick1", "pass1"),
-                new Entry("name2", "nick2", "pass2"),
-                new Entry("name3", "nick3", "pass3")
+                new Entry("name1", "login1", "pass1"),
+                new Entry("name2", "login2", "pass2"),
+                new Entry("name3", "login3", "pass3")
         );
     }
 
@@ -23,7 +23,7 @@ public class AuthService {
     }
 
     public boolean isCreated(String nick){
-        return entries.stream().anyMatch(entry -> entry.Login.equals(nick));
+        return entries.stream().anyMatch(entry -> entry.name.equals(nick));
     }
 
     static class Entry{

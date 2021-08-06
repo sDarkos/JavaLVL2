@@ -46,17 +46,19 @@ public class Server {
                 .anyMatch(u-> u.getName().equals(name));
     }
 
-    public void broadcastMessage(String message){
-        logonUsers.forEach(clientHandler -> clientHandler.sendMessage(message));
+    public void broadcastMessage(String message, String name){
+        logonUsers.forEach(clientHandler -> clientHandler.sendMessage(name + ": " + message));
     }
 
     public  void whisperMessage(String message, String nick, ClientHandler user){
-        logonUsers.forEach(clientHandler -> {
-            if (clientHandler.getNick().equals(nick)){
-                clientHandler.sendMessage(message);
-            } else {
+        if (isUserOccupied(nick)){
+            logonUsers.forEach(clientHandler -> {
+                if (clientHandler.getName().equals(nick)){
+                    clientHandler.sendMessage(message);
+                }
+            });
+        } else {
                 user.sendMessage("User is offline");
-            }
-        });
+        }
     }
 }

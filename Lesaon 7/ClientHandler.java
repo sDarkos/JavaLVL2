@@ -1,5 +1,6 @@
 package server;
 
+import javax.swing.table.TableRowSorter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -11,11 +12,6 @@ public class ClientHandler {
     private DataInputStream in;
     private DataOutputStream out;
     private String name;
-    private String nick;
-
-    public String getNick() {
-        return nick;
-    }
 
     public String getName() {
         return name;
@@ -23,30 +19,30 @@ public class ClientHandler {
 
 
     public ClientHandler(Server server, Socket socket) {
-        this.server = server;
         try {
+            this.server = server;
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
 
             new Thread(()->{
                 try {
-                    doAuthentication();
+                    doAuthentication(socket);
                     listenMessages();
                 } catch (IOException e) {
                     e.printStackTrace();
+                }finally {
+                    closeConnection(socket);
                 }
-            }).start();
-
+            })
+                    .start();
         } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            closeConnection(socket);
+            throw new RuntimeException("Something went wrong during client establishing...", e);
         }
     }
 
     private void closeConnection(Socket socket){
         server.unSubscribe(this);
-        server.broadcastMessage("User " + name + " is logout." );
+        server.broadcastMessage("User +  " + name + " is logout.", "CHAT");
 
         try {
             in.close();
@@ -67,35 +63,37 @@ public class ClientHandler {
         }
     }
 
-    private void doAuthentication () throws IOException {
-        while (true){
-            String maybeCredentials = in.readUTF();
-            if (maybeCredentials.startsWith("-auth")){
-                String[] credentials = maybeCredentials.split("\\s");
+    private void doAuthentication (Socket socket) throws IOException {
+        sendMessage("Greeting your outstanding chat ");
+        sendMessage("Please authentication: -auth login password");
+        sendMessage("You have 120 seconds to authentication");
+        while (true) {
+                String maybeCredentials = in.readUTF();
+                if (maybeCredentials.startsWith("-auth")) {
+                    String[] credentials = maybeCredentials.split("\\s");
 
-                Optional<AuthService.Entry> maybeUser = server.getAuthService()
-                        .findUserByLoginAndPassword(credentials[1], credentials[2]);
+                    Optional<AuthService.Entry> maybeUser = server.getAuthService()
+                            .findUserByLoginAndPassword(credentials[1], credentials[2]);
 
-                if(maybeUser.isPresent()){
-                    AuthService.Entry user = maybeUser.get();
-                    if (!server.isUserOccupied(user.getName())){
-                        name = user.getName();
-                        nick = user.getLogin();
-                        sendMessage("Login OK...");
-                        sendMessage("Welcome");
-                        server.broadcastMessage("User " + name + "entered chat");
-                        server.subscribe(this);
-                        return;
+                    if (maybeUser.isPresent()) {
+                        AuthService.Entry user = maybeUser.get();
+                        if (!server.isUserOccupied(user.getName())) {
+                            sendMessage("Login OK...");
+                            sendMessage("Welcome");
+                            server.broadcastMessage("User " + name + " entered chat", "CHAT");
+                            server.subscribe(this);
+                            return;
+                        } else {
+                            sendMessage("Current user is already logged in...");
+                        }
+                    } else {
+                        sendMessage("invalid credentials..");
                     }
-                    else {
-                        sendMessage("Current user is already logged in...");
-                    }
-                }else {
-                    sendMessage("invalid credentials..");
+                } else {
+                    sendMessage("invalid uth operation");
                 }
             }
         }
-    }
 
     public void sendMessage(String outBoundMessage){
         try {
@@ -114,17 +112,18 @@ public class ClientHandler {
             if (inBoundMessage.startsWith("/w")){
                 String[] whisper = inBoundMessage.split("\\s");
                 if (server.getAuthService().isCreated(whisper[1])){
-                    String whisperMessage = "";
+                    String whisperMessage = "User " + this.getName() + " whisper you:";
                     for (int i = 2; i < whisper.length; i++) {
                         whisperMessage = whisperMessage + " "  + whisper[i];
                     }
-                        server.whisperMessage(inBoundMessage, whisper[1], this);
+                        server.whisperMessage(whisperMessage, whisper[1], this);
                 }
                 else {
                     sendMessage("User is not fond.");
                 }
+            } else {
+                server.broadcastMessage(inBoundMessage ,this.getName());
             }
-            server.broadcastMessage(inBoundMessage);
         }
     }
 }
